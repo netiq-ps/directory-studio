@@ -39,6 +39,13 @@ jobs:
           cache: maven
       - name: Build with Apache Maven
         run: mvn -f pom-first.xml -U clean install  && mvn clean install 
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: |
+            product/target/products/ApacheDirectoryStudio-*
     env: 
        MAVEN_OPTS: "-Xmx1024M"
 
