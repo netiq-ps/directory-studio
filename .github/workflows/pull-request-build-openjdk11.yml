@@ -20,13 +20,13 @@ on:
     branches: ['master']
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read  
+      contents: write  
       pull-requests: read
     timeout-minutes: 130
     steps:
@@ -39,6 +39,24 @@ jobs:
           cache: maven
       - name: Build with Apache Maven
         run: mvn -f pom-first.xml -U clean install  && mvn clean install 
+
+    #   - name: Upload artifacts
+    #     uses: actions/upload-artifact@v4
+    #     with:
+    #       name: platform-binaries
+    #       path: |
+    #         product/target/products/ApacheDirectoryStudio-*
+    #       compression-level: 0 # no compression
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: product/target/products/ApacheDirectoryStudio-*
+          tag: prerelease
+          overwrite: true
+          file_glob: true
+          prerelease: true
+
     env: 
        MAVEN_OPTS: "-Xmx1024M"
 
