@@ -26,7 +26,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read  
+      contents: write  
       pull-requests: read
     timeout-minutes: 130
     steps:
@@ -52,6 +52,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           file: product/target/products/ApacheDirectoryStudio-*
+          release_name: prerelease
           overwrite: true
           file_glob: true
           prerelease: true
