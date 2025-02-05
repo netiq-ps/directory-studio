@@ -52,7 +52,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           file: product/target/products/ApacheDirectoryStudio-*
-          release_name: prerelease
+          tag: prerelease
           overwrite: true
           file_glob: true
           prerelease: true
