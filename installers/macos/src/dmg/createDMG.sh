@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,34 +18,60 @@
 
 set -e
 
-# Creating dmg and .background folders
-mkdir dmg
-mkdir -p dmg/.background
+# Parse args
+sign_key=""
+case "$1" in
+    -s|--sign)
+        if [ -z "$2" ]; then
+            echo "Error: $1 requires a key argument" >&2
+            exit 1
+        fi
+        sign_key="$2"
+        ;;
+esac
 
-# Copy the application
-tar -xf ../../../product/target/products/ApacheDirectoryStudio-*-macosx.cocoa.x86_64.tar.gz -C dmg
+# Validate signing setup once, before the loop
+if [ -n "$sign_key" ]; then
+    if [ "$(uname -s)" = "Darwin" ]; then
+        if ! command -v codesign >/dev/null 2>&1; then
+            echo "Error: --sign requires the 'codesign' tool, which was not found in PATH." >&2
+            exit 1
+        fi
+    else
+        # codesign is macOS-only; rcodesign exists cross-platform but is not wired up here
+        echo "Warning: code signing was requested but is only supported on macOS. Skipping signing." >&2
+        sign_key=""
+    fi
+fi
 
-# Copy legal files
-cp dmg/ApacheDirectoryStudio.app/Contents/Eclipse/LICENSE dmg/
-cp dmg/ApacheDirectoryStudio.app/Contents/Eclipse/NOTICE dmg/
+for archive in ../../../../product/target/products/ApacheDirectoryStudio-*-macosx.*.tar.gz; do
 
-# Move background image
-mv background.png dmg/.background/
+    dmg=$(echo "$archive" | sed 's/tar\.gz/dmg/g')
+    echo "Building $dmg"
 
-# Move .DS_Store file
-mv DS_Store dmg/.DS_Store
+    # cleanup
+    rm -rf dmg/* TMP*dmg
 
-# Creating symbolic link to Applications folder
-ln -s /Applications dmg/Applications
+    # prepare DMG content
+    mkdir -p dmg/.background/
+    cp -av background.png dmg/.background/
+    cp -av DS_Store dmg/.DS_Store
+    ln -sv /Applications dmg/Applications
 
-# Codesign the App with the ASF key, and verify
-codesign --force --deep --timestamp --options runtime --entitlements entitlements.plist -s ${APPLE_SIGNING_ID} dmg/ApacheDirectoryStudio.app
-codesign -dv --verbose=4 dmg/ApacheDirectoryStudio.app
+    # Copy the application
+    tar -xvf $archive -C dmg
 
-# Creating the disk image
-hdiutil create -srcfolder dmg/ -volname "ApacheDirectoryStudio" -o TMP.dmg
-hdiutil convert -format UDZO TMP.dmg -o ApacheDirectoryStudio-${version}-macosx.cocoa.x86_64.dmg
+    # Codesign the App and verify
+    if [ -n "$sign_key" ]; then
+        echo "Signing with ID: $sign_key"
+        codesign --verbose --force --deep --timestamp --options runtime --entitlements entitlements.plist -s "$sign_key" dmg/ApacheDirectoryStudio.app
+        codesign -dv --verbose=4 dmg/ApacheDirectoryStudio.app
+    fi
 
-# Cleaning
-#rm TMP.dmg
-#rm -rf dmg/
+    # Creating the disk image
+    hdiutil create -verbose -srcfolder dmg/ -volname "ApacheDirectoryStudio" -o TMP.dmg
+    hdiutil convert -verbose -format UDZO TMP.dmg -o "$dmg"
+
+    rm -rf dmg/* TMP*dmg
+
+done
